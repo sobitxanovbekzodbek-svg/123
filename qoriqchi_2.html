@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qo'riqchi — Begona Odam Detektori</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at top, #101820 0%, #05080B 100%);
+    font-family: 'Courier New', 'JetBrains Mono', monospace;
+    color: #E7ECEF;
+  }
+  .app {
+    width: 100%;
+    max-width: 420px;
+    min-height: 560px;
+    background: linear-gradient(180deg, #0B0F14 0%, #0F1620 100%);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #1E2A35;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #1E2A35;
+    background: #0D1219;
+  }
+  .topbar .title {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: #8FA3B0;
+  }
+  .badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #3B1414;
+    color: #FF6B6B;
+    border: 1px solid #7A2323;
+  }
+  .badge.unlocked {
+    background: #123B24;
+    color: #4ADE80;
+    border-color: #1F6B3E;
+  }
+  .stage {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    text-align: center;
+  }
+  .stage.active { display: flex; }
+  h2 { margin: 0 0 6px 0; font-size: 17px; font-weight: 600; }
+  p.sub { margin: 0 0 20px 0; font-size: 12.5px; color: #8FA3B0; max-width: 300px; }
+  form { width: 100%; max-width: 280px; display: flex; flex-direction: column; gap: 10px; }
+  input[type="password"], input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #2A3947;
+    background: #0D1219;
+    color: #E7ECEF;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+  }
+  input.shake {
+    animation: shake 0.4s;
+    border-color: #FF6B6B !important;
+  }
+  button {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    background: #FF8A3D;
+    color: #1A0F00;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.ghost {
+    background: #0D1219;
+    color: #8FA3B0;
+    border: 1px solid #2A3947;
+    font-weight: 500;
+    font-size: 11px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .error { color: #FF6B6B; font-size: 12px; min-height: 14px; }
+  .camwrap {
+    position: relative;
+    width: 210px;
+    height: 158px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #2A3947;
+    background: #000;
+    margin-bottom: 16px;
+  }
+  .camwrap.flash { box-shadow: 0 0 0 4px #FF6B6B; }
+  video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .camstatus {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; color: #5A6B78; padding: 10px; text-align: center;
+  }
+  .rec { position: absolute; top: 6px; left: 8px; display: flex; align-items: center; gap: 5px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #FF3B3B; animation: pulse 1.5s infinite; }
+  .rec span { font-size: 10px; color: #FF8A8A; }
+  .count { margin-top: 14px; font-size: 11px; color: #FF8A8A; }
+
+  .panel { flex: 1; padding: 20px; overflow-y: auto; display: none; }
+  .panel.active { display: block; }
+  .panelhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .panelhead h2 { font-size: 14px; }
+  .actions { display: flex; gap: 8px; }
+  .empty { font-size: 13px; color: #5A6B78; text-align: center; padding: 40px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+  .card { background: #111820; border: 1px solid #1E2A35; border-radius: 8px; overflow: hidden; }
+  .card img { width: 100%; display: block; transform: scaleX(-1); }
+  .card .t { font-size: 9.5px; color: #8FA3B0; padding: 6px 8px; }
+  .note { margin-top: 20px; font-size: 10.5px; color: #5A6B78; line-height: 1.5; text-align: left; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <span style="color:#FF8A3D;">&#9888;</span>
+    <span class="title">QO'RIQCHI // BEGONA ODAM DETEKTORI</span>
+    <span class="badge" id="badge">QULFLANGAN</span>
+  </div>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <!-- SETUP -->
+  <div class="stage active" id="stage-setup">
+    <div style="font-size:32px; margin-bottom:10px;">&#128273;</div>
+    <h2>Himoya parolini o'rnating</h2>
+    <p class="sub">Shu paroldan boshqa kimdir kiritishga urinsa, kamera avtomatik ravishda uning suratini oladi.</p>
+    <form id="form-setup">
+      <input type="password" id="pw1" placeholder="Yangi parol" autocomplete="new-password">
+      <input type="password" id="pw2" placeholder="Parolni tasdiqlang" autocomplete="new-password">
+      <div class="error" id="setup-error"></div>
+      <button type="submit">Qo'riqlashni yoqish</button>
+    </form>
+  </div>
+
+  <!-- LOCKED -->
+  <div class="stage" id="stage-locked">
+    <div class="camwrap" id="camwrap">
+      <video id="video" muted playsinline></video>
+      <div class="camstatus" id="camstatus">Kamera ulanmoqda...</div>
+      <div class="rec"><span class="dot"></span><span>REC</span></div>
+    </div>
+    <div style="font-size:22px; margin-bottom:6px;">&#128274;</div>
+    <h2>Kompyuter qulflangan</h2>
+    <p class="sub" style="margin-bottom:16px;">Davom etish uchun parolni kiriting</p>
+    <form id="form-unlock">
+      <input type="password" id="attempt" placeholder="Parol" autofocus>
+      <div class="error" id="unlock-error"></div>
+      <button type="submit">Ochish</button>
+    </form>
+    <div class="count" id="count" style="display:none;"></div>
+  </div>
+
+  <!-- UNLOCKED -->
+  <div class="panel" id="stage-unlocked">
+    <div class="panelhead">
+      <h2>Qo'lga tushirilgan suratlar</h2>
+      <div class="actions">
+        <button class="ghost" id="btn-clear">&#128465; Tozalash</button>
+        <button class="ghost" id="btn-lock">&#128274; Qulflash</button>
+      </div>
+    </div>
+    <div class="empty" id="empty-msg">Hozircha hech qanday noto'g'ri urinish qayd etilmagan.</div>
+    <div class="grid" id="grid"></div>
+    <div class="note">Eslatma: bu sahifa faqat brauzerda ochiq turganda ishlaydi. Ma'lumotlar shu qurilmaning brauzerida saqlanadi (sahifani yopib qayta ochsangiz ham suratlar qoladi, lekin boshqa qurilmada ko'rinmaydi).</div>
+  </div>
+</div>
+
+<script>
+  let password = localStorage.getItem('qg_password') || '';
+  let captures = JSON.parse(localStorage.getItem('qg_captures') || '[]');
+  let stream = null;
+  let camReady = false;
+
+  const $ = (id) => document.getElementById(id);
+  const stages = { setup: $('stage-setup'), locked: $('stage-locked'), unlocked: $('stage-unlocked') };
+
+  function showStage(name) {
+    Object.values(stages).forEach(el => el.classList.remove('active'));
+    stages[name].classList.add('active');
+    $('badge').textContent = name === 'unlocked' ? 'OCHIQ' : 'QULFLANGAN';
+    $('badge').classList.toggle('unlocked', name === 'unlocked');
+    if (name === 'locked') startCamera();
+    if (name === 'unlocked') { stopCamera(); renderGallery(); }
+  }
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 360 }, audio: false });
+      $('video').srcObject = stream;
+      await $('video').play();
+      camReady = true;
+      $('camstatus').style.display = 'none';
+    } catch (e) {
+      camReady = false;
+      $('camstatus').style.display = 'flex';
+      $('camstatus').textContent = "Kamera ruxsati berilmadi. Brauzer sozlamalaridan ruxsat bering.";
+    }
+  }
+
+  function stopCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+
+  function snap() {
+    if (!camReady) return null;
+    const video = $('video');
+    const canvas = $('canvas');
+    canvas.width = video.videoWidth || 480;
+    canvas.height = video.videoHeight || 360;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  }
+
+  function saveState() {
+    localStorage.setItem('qg_password', password);
+    localStorage.setItem('qg_captures', JSON.stringify(captures));
+  }
+
+  function speak(text) {
+    try {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      const ruVoice = voices.find(v => v.lang && v.lang.startsWith('ru'));
+      if (ruVoice) u.voice = ruVoice;
+      u.rate = 1;
+      u.pitch = 1;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  function renderGallery() {
+    $('empty-msg').style.display = captures.length ? 'none' : 'block';
+    const grid = $('grid');
+    grid.innerHTML = '';
+    captures.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `<img src="${c.img}"><div class="t">${c.time}</div>`;
+      grid.appendChild(div);
+    });
+  }
+
+  // Setup form
+  $('form-setup').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const a = $('pw1').value, b = $('pw2').value;
+    const err = $('setup-error');
+    if (a.length < 4) { err.textContent = "Parol kamida 4 belgidan iborat bo'lsin."; return; }
+    if (a !== b) { err.textContent = "Parollar mos kelmadi."; return; }
+    password = a;
+    err.textContent = '';
+    saveState();
+    showStage('locked');
+  });
+
+  // Unlock form
+  $('form-unlock').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = $('attempt').value;
+    const err = $('unlock-error');
+    const input = $('attempt');
+    if (val === password) {
+      err.textContent = '';
+      input.value = '';
+      showStage('unlocked');
+      return;
+    }
+    const img = snap();
+    if (img) {
+      captures.unshift({ time: new Date().toLocaleString('uz-UZ'), img });
+      saveState();
+      $('camwrap').classList.add('flash');
+      setTimeout(() => $('camwrap').classList.remove('flash'), 220);
+    }
+    err.textContent = "Tegma! Qo'ling qichidimi? Suratga olindi!";
+    speak("Tegma! Qo'ling qichidimi?");
+    input.classList.add('shake');
+    setTimeout(() => input.classList.remove('shake'), 400);
+    input.value = '';
+    $('count').style.display = 'block';
+    $('count').textContent = `${captures.length} ta noto'g'ri urinish qayd etilgan`;
+  });
+
+  $('btn-clear').addEventListener('click', () => {
+    captures = [];
+    saveState();
+    renderGallery();
+  });
+
+  $('btn-lock').addEventListener('click', () => showStage('locked'));
+
+  // Init
+  if (password) {
+    showStage('locked');
+    $('count').style.display = captures.length ? 'block' : 'none';
+    if (captures.length) $('count').textContent = `${captures.length} ta noto'g'ri urinish qayd etilgan`;
+  } else {
+    showStage('setup');
+  }
+</script>
+
+</body>
+</html>
